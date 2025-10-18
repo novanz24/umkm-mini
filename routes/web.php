@@ -1,62 +1,50 @@
 <?php
 
-use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-use App\Http\Controllers\ProfileController;
+
+// User
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CheckoutController;
-use App\Http\Controllers\Admin;
+use App\Http\Controllers\OrderController;
 
-/*
-|--------------------------------------------------------------------------
-| Web Routes
-|--------------------------------------------------------------------------
-|
-| Here is where you can register web routes for your application. These
-| routes are loaded by the RouteServiceProvider within a group which
-| contains the "web" middleware group. Now create something great!
-|
-*/
+// Admin
+use App\Http\Controllers\Admin\ProductController as AdminProductController;
+use App\Http\Controllers\Admin\CategoryController as AdminCategoryController;
+use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 
-// Halaman utama (Katalog Produk) untuk semua orang
+// Public
 Route::get('/', [CatalogController::class, 'index'])->name('home');
 Route::get('/products/{product}', [CatalogController::class, 'show'])->name('products.show');
 
-// Rute Dashboard bawaan Laravel
-Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
-
-// Rute yang memerlukan login
+// User area (auth)
 Route::middleware('auth')->group(function () {
-    // Profile
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    // Cart
+    Route::get('/cart', [CartController::class,'index'])->name('cart.index');
+    Route::post('/cart/items', [CartController::class,'add'])->name('cart.items.add');
+    Route::patch('/cart/items/{item}', [CartController::class,'update'])->name('cart.items.update');
+    Route::delete('/cart/items/{item}', [CartController::class,'destroy'])->name('cart.items.destroy');
 
-    // Keranjang (Cart)
-    Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
-    Route::post('/cart/add', [CartController::class, 'add'])->name('cart.add');
-    Route::patch('/cart/update/{item}', [CartController::class, 'update'])->name('cart.update');
-    Route::delete('/cart/destroy/{item}', [CartController::class, 'destroy'])->name('cart.destroy');
+    // Checkout & Orders
+    Route::get('/checkout', [CheckoutController::class,'form'])->name('checkout.form');
+    Route::post('/checkout', [CheckoutController::class,'store'])->name('checkout.store');
 
-    // Checkout
-    Route::get('/checkout', [CheckoutController::class, 'form'])->name('checkout.form');
-    Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');
+    Route::get('/orders', [OrderController::class,'index'])->name('orders.index');
+    Route::get('/orders/{order}', [OrderController::class,'show'])->name('orders.show');
 });
 
-// Rute khusus Admin
-Route::middleware(['auth', 'can:admin-area'])->prefix('admin')->name('admin.')->group(function () {
-    Route::resource('products', Admin\ProductController::class)->except(['show']);
-    Route::resource('categories', Admin\CategoryController::class)->except(['show']);
-    
-    // Rute untuk Pesanan
-    Route::get('orders', [Admin\OrderController::class, 'index'])->name('orders.index');
-    Route::patch('orders/{order}/status', [Admin\OrderController::class, 'updateStatus'])->name('orders.updateStatus');
-});
+// Admin (auth + gate)
+Route::middleware(['auth','can:admin-area'])
+    ->prefix('admin')->name('admin.')->group(function () {
+        Route::resource('products', AdminProductController::class);
+        Route::resource('categories', AdminCategoryController::class)->only(['index','store','update','destroy']);
+        Route::get('orders', [AdminOrderController::class,'index'])->name('orders.index');
+        Route::patch('orders/{order}/status', [AdminOrderController::class,'updateStatus'])->name('orders.updateStatus');
+    });
 
+// Dashboard Breeze
+Route::get('/dashboard', fn () => Inertia::render('Dashboard'))
+    ->middleware(['auth','verified'])->name('dashboard');
 
-// Memuat rute autentikasi bawaan
 require __DIR__.'/auth.php';
